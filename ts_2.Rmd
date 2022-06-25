@@ -1,0 +1,270 @@
+---
+title: "ts_2"
+author: "Soumarya Basak"
+date: "08/06/2022"
+output:
+  pdf_document:
+    keep_tex: yes
+  html_document:
+    df_print: paged
+---
+```{r}
+library(ggplot2)
+library(TSA)
+library(tseries)
+library(forecast)
+library(TTR)
+```
+
+## Importing the Data
+```{r}
+df<- read.csv("C:\\Users\\souma\\Dropbox\\Mstat_CU\\Sem 2\\Regression_analysis_1\\Data Sets\\ts_2.csv", header = FALSE)
+
+# Convert this into time series data
+ts2<- ts(df, start = c(1990,1), frequency = 12)
+ts2
+
+# Lets see the time series
+plot(ts2, lwd=2, ylab="Sales of Jeans", main="Monthly sales data of US")
+```
+## Docomposition
+```{r}
+decompose(ts2)
+plot(decompose(ts2))
+```
+
+
+## Exponential smothing 
+Now we will model this data using exponential smoothing method and observe the fitting and forecast for the next year.
+
+
+```{r}
+m_es<- ets(ts2, model = "ANN")  ## ANN model indicates the simple exponential smoothing
+summary(m_es)
+
+
+plot(m_es)  
+```
+SO we get the estiate of $\alpha=$ 0.869 
+
+
+```{r}
+plot(ts2, lwd=2, main="Time Series Plot",ylab="Sales of Jeans", xlab="Year")
+lines(fitted(m_es), col="red")
+legend(1990,3050,legend=c("Fitted","Orginal"), col=c("red", "black"), lwd=c(1,1))
+```
+### Prediction for subsequent year
+
+```{r}
+forecast(m_es, h=12)
+```
+
+```{r}
+plot(m_es)
+plot(predict(m_es, h=12),main= "Forecaseted value for the year 1996",
+     xlab="Year", ylab = "Sales of jeans")
+```
+
+## Another Approach For exponential smoonthing
+```{r}
+exp_smooth<- ses(ts2)
+summary(exp_smooth)
+```
+```{r}
+plot(ts2, lwd=2, main="Time Series Plot",ylab="Sales of Jeans", xlab="Year")
+lines(fitted(exp_smooth), col="red")
+legend(1990,3050,legend=c("Fitted","Orginal"), col=c("red", "black"), lwd=c(1,1))
+```
+```{r}
+plot(forecast(exp_smooth))
+```
+```{r}
+#---------Residual Sum of squares of Exp_ smoothing-------------
+
+res_e<- resid(exp_smooth)
+RSS1<- sum(res_e^2)
+RSS1
+
+```
+
+
+# Holt Winter Method
+```{r}
+m_hwt<- ets(ts2, model = "AAA")
+summary(m_hwt)
+```
+```{r}
+plot(ts2, lwd=2, main="Time Series Plot",ylab="Sales of Jeans", xlab="Year")
+lines(m_hwt$fitted, col="red")
+legend(1990,3050,legend=c("Fitted","Orginal"), col=c("red", "black"), lwd=c(1,1))
+
+```
+## Forecast
+
+```{r}
+forecast(m_hwt ,h=12)
+```
+
+```{r}
+plot(forecast(m_hwt,h=12),,main= "Forecaseted value for the year 1996",
+     xlab="Year", ylab = "Sales of jeans")
+```
+# Another approach for Holt winter
+
+```{r}
+holt<- hw(ts2)
+summary(holt)
+```
+```{r}
+plot(ts2, lwd=2, main="Time Series Plot",ylab="Sales of Jeans", xlab="Year")
+lines(holt$fitted, col="red")
+legend(1990,3050,legend=c("Fitted","Orginal"), col=c("red", "black"), lwd=c(1,1))
+
+```
+
+```{r}
+plot(forecast(holt,h=12),,main= "Forecaseted value for the year 1996",
+     xlab="Year", ylab = "Sales of jeans")
+```
+
+# Box-Jenkins Model
+
+Lets starts wit the plot 
+
+```{r}
+plot(ts2, lwd=2, main="Time Series Plot",ylab="Sales of Jeans", xlab="Year")
+
+```
+### Acf and Pacf plot
+
+```{r}
+Acf(ts2, main="ACF Plot")
+Pacf(ts2,main="PACF Plot")
+```
+Acf plot shows that their is a presence of seasonality.
+
+## ADF test for finding d
+```{r}
+adf.test(ts2)
+```
+
+```{r}
+
+# Adf test after 1st difference
+dif_1<- diff(ts2, 1)
+adf.test(dif_1)
+```
+The p-value is lesser than 0.05 , so we reject the null hypothesis. which indicates that the data is stationary at 1st differentiating.
+so, `d=1`
+
+```{r}
+#Acf plot for first difference
+Acf(dif_1)
+Pacf(dif_1)
+```
+After 1st difference the data becomes nonstationary in trend.
+
+## SARIMA Model
+
+### Finding `d`
+```{r}
+adf.test(ts2,k=1)
+```
+So the data becomes non stationary in trend after first difference.
+
+### Finding `P` and `Q`
+```{r}
+dif_12<- diff(ts2,12) #12 th different
+#Acf(ts2)
+#Pacf(ts2)
+```
+
+We can find that there is a significant spike at lag 12 and 13 on ACF and at 11 point in PAcf
+So, the the seasonal MA order is `Q=1`. and we may consider `P=1 or 0`
+
+### Finding `D`
+```{r}
+dif_12<- diff(ts2,12) # 12th difference of the ts
+adf.test(dif_12)
+```
+The p value is larger than 0.05, so we need to accept the fact that the process is non stationary.
+
+After $s^{th}$ difference the the model is still non-stationary,
+
+
+```{r}
+dif_24<- diff(ts2, 24) # 24th order difference
+adf.test(dif_24)
+```
+After $2s^{th}$ difference the the model is still non-stationary,
+
+
+
+## Sarima
+```{r}
+
+# First model SARIMA(1,1,1)(1,0,1)
+m_sarima<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,0,1), period=12))
+summary(m_sarima)
+```
+
+```{r}
+forecast(m_sarima,h=12)
+
+```
+```{r}
+plot(ts2, lwd=2, main="Time Series Plot with SARIMA(1,1,1,,1,0,1)",ylab="Sales of Jeans", xlab="Year")
+lines(m_sarima$fitted, col="red")
+legend(1990,3050,legend=c("Fitted","Orginal"), col=c("red", "black"), lwd=c(1,1))
+
+```
+
+```{r}
+plot(forecast(m_sarima,h=12), main = " Forecast for SARIMA(1,1,1,1,0,1)")
+```
+```{r}
+# mOdel 2;
+m_sarima2<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,1,1), period=12))
+#m_sarima3<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,2,1), period=12)) #
+m_sarima4<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(0,0,1), period=12))
+m_sarima5<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,0,0), period=12))
+m_sarima6<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,1,0), period=12))
+# m_sarima7<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,2,0), period=12))
+m_sarima8<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(0,2,1), period=12))
+m_sarima9<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,2,3), period=12))
+m_sarima10<- Arima(ts2, order = c(1,1,1), seasonal = list(order=c(1,2,2), period=12))
+
+AIC<- c(m_sarima$aic, m_sarima2$aic, m_sarima4$aic, m_sarima5$aic, m_sarima6$aic, m_sarima8$aic, m_sarima9$aic, m_sarima10$aic)
+
+AIC
+
+```
+So, the model `SARIMA(1,1,1)(1,2,2)` is the best model as it has low AIC value.
+
+### SARIMA(1,1,1)(1,2,2)
+```{r}
+summary(m_sarima10)
+```
+
+The model will be good enough if the residuals for the model be random in nature.\
+To test for the randomness of the residuals we would perform  Ljung Box test here.
+```{r}
+Box.test(m_sarima10$residuals,lag = 71,type="Ljung-Box")
+```
+**Comment:** Here the high p value indicates that the residuals are random in nature so we can work with this model.
+
+```{r}
+forecast(m_sarima10, h=12)
+
+```
+```{r}
+plot(forecast(m_sarima10, h=12), main = " Forecast for SARIMA(1,1,1,1,2,2)", xlab = "Year")
+```
+```{r}
+#------ Fitted value of SRAIMA------------
+plot(ts2, lwd=2, main="Time Series Plot with SARIMA(1,1,1,,1,2,2)",ylab="Sales of Jeans", xlab="Year")
+lines(m_sarima10$fitted, col="red")
+legend(1990,3050,legend=c("Fitted","Orginal"), col=c("red", "black"), lwd=c(1,1))
+```
+
+

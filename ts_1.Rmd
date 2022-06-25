@@ -1,0 +1,176 @@
+---
+title: "time_series_1"
+author: "Soumarya Basak"
+date: "24/05/2022"
+output: 
+  pdf_document: 
+    keep_tex: yes
+---
+
+# Problem 1
+
+### Data
+```{r}
+library(readr)
+library(ggplot2)
+library(tseries)
+library(forecast)
+library(TSA)
+
+df<- read.csv("C:\\Users\\souma\\Dropbox\\Mstat_CU\\Sem 2\\Regression_analysis_1\\Data Sets\\ts_1.csv")
+#df<- data.frame("Level"=df$Level,row.names = df$Year)
+
+```
+
+```{r}
+#plot(df$Level,type='l', main="The time series data", main)
+ggplot(data=df)+
+  geom_line(aes(Year,Level),col="blue")+
+  ggtitle("The Time serires")+
+  theme_minimal()
+  
+
+```
+### The Correlogram
+
+```{r}
+Acf(ts(df$Level), main="The Correlogram")
+Pacf(ts(df$Level),main="PACF")
+```
+### Modeling
+
+```{r}
+
+# ADF test for d
+adf.test(df$Level,k=1)
+
+
+```
+p value is more than 0.05 so the accept the null that the process is non-stationary 
+```{r}
+fst_diff<- diff(df$Level, differences = 1)
+
+#adf test on first difference'
+adf.test(fst_diff,k=1)
+```
+p value is larger than 0.05
+```{r}
+# Acf and pacf plot of 1st diffreence
+ggtsdisplay(fst_diff)
+```
+ 
+
+```{r}
+snd_diff<- diff(fst_diff,differences = 1)
+
+adf.test(snd_diff,k=1)
+```
+
+note that, the p value is less than 0.05, so we reject the null hypothesis of non-stationary. So, after 2nd difference the series become stationary.
+
+```{r}
+autoplot(ts(snd_diff))
+```
+```{r}
+ggtsdisplay(ts(snd_diff))
+acf(snd_diff)
+Pacf(snd_diff)
+```
+### MOdel 1
+```{r}
+### very bad model
+ts_mod<- Arima(y=ts(df$Level),order = c(0,2,0))
+summary(ts_mod)
+```
+```{r}
+mod_1<- Arima(y=ts(df$Level),order=c(1,0,0))  # AR(1)
+mod_2<- Arima(y=ts(df$Level),order=c(0,0,1))  # MA(1)
+mod_3<- Arima(y=ts(df$Level),order=c(0,1,1))
+mod_4<- Arima(y=ts(df$Level),order=c(1,1,0))
+mod_5<- Arima(y=ts(df$Level),order=c(0,2,1))
+mod_6<- Arima(y=ts(df$Level),order=c(1,2,0))
+mod_7<- Arima(y=ts(df$Level),order=c(1,1,1))
+mod_8<- Arima(y=ts(df$Level),order=c(1,2,1))
+mod_9<- Arima(y=ts(df$Level),order=c(1,0,1))
+
+aic<- c(mod_1$aic,mod_2$aic,mod_3$aic,mod_4$aic,mod_5$aic,mod_6$aic,mod_7$aic,mod_8$aic,mod_9$aic)
+model<- c(1:9)
+cbind(model,aic)
+
+```
+So, the 4th model has the least aic, so we will further go with the 4th model. 
+
+
+```{r}
+#### to know the element of the model
+names(ts_mod)
+```
+```{r}
+# the final model:::::: ARIMA(1,1,0)
+summary(mod_4)
+
+```
+
+The final model is 
+$$(Y_t-Y_{t-1})= 0.2179 \times (Y_{t-1}-Y_{t-2})$$
+```{r}
+##### Model 2 ::::::::ARIMA(0,1,1)
+summary(mod_3)
+
+```
+
+```{r}
+### Model 3;;;;;;;;; ARIMA(0,2,1)
+summary(mod_5)
+
+```
+```{r}
+### Model 4 :::: ARIMA (1,2,0)
+summary(mod_6)
+```
+## Test for randomness of residuals
+note that we sticking with ARIMA(1,1,0) :`mod_4`.
+
+
+## Portmanteau test 
+
+```{r}
+res<- mod_4$residuals
+res
+acf(res)
+acf(res,plot=FALSE)
+```
+The acf plot of the residuals shows that there is a randomness in the residuals. \
+ But we have to test statistically.
+ 
+### Portmanteau test
+```{r}
+Box.test(res,lag = 11, type="Box-Pierce",fitdf = 1)
+```
+
+
+### Ljung Box test
+```{r}
+Box.test(res,lag=11,type = "Ljung-Box",fitdf =1)
+```
+p value > 0.05
+so, we will accept that the residuals are random.
+
+
+
+## Forecast
+```{r}
+forecast(mod_4,h=3) #h=lag
+```
+
+```{r}
+plot(forecast(mod_4,h=3),xaxt="n", xlab="Years")
+axis(1,1:15)
+  
+```
+
+
+
+
+
+
